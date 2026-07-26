@@ -15,12 +15,21 @@
   const stopReversedBtn = document.getElementById('stopReversed');
   const downloadBtn = document.getElementById('downloadReversed');
   const resetBtn = document.getElementById('reset');
+  const recordToggleBtn = document.getElementById('recordToggle');
+  const recordToggleLabel = document.getElementById('recordToggleLabel');
+  const recordTimerEl = document.getElementById('recordTimer');
 
   let audioCtx = null;
   let originalBuffer = null;
   let reversedBuffer = null;
   let originalSource = null;
   let reversedSource = null;
+
+  let mediaRecorder = null;
+  let recordedChunks = [];
+  let recordingStream = null;
+  let recordingStartedAt = 0;
+  let recordingTimerId = null;
 
   function getAudioContext() {
     if (!audioCtx) {
@@ -73,6 +82,121 @@
     workspace.classList.add('hidden');
     fileInput.value = '';
     setStatus('');
+  });
+
+  // ---- In-place recording ----
+  function pickRecordingMimeType() {
+    const candidates = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/mp4',
+      'audio/ogg;codecs=opus'
+    ];
+    if (!window.MediaRecorder) return '';
+    for (const type of candidates) {
+      if (MediaRecorder.isTypeSupported(type)) return type;
+    }
+    return '';
+  }
+
+  function formatTimer(ms) {
+    const totalSec = Math.floor(ms / 1000);
+    const m = String(Math.floor(totalSec / 60)).padStart(2, '0');
+    const s = String(totalSec % 60).padStart(2, '0');
+    return `${m}:${s}`;
+  }
+
+  function startRecordingTimer() {
+    recordingStartedAt = performance.now();
+    recordTimerEl.classList.remove('hidden');
+    recordTimerEl.textContent = '00:00';
+    recordingTimerId = setInterval(() => {
+      recordTimerEl.textContent = formatTimer(performance.now() - recordingStartedAt);
+    }, 250);
+  }
+
+  function stopRecordingTimer() {
+    if (recordingTimerId) {
+      clearInterval(recordingTimerId);
+      recordingTimerId = null;
+    }
+  }
+
+  function setRecordingUI(isRecording) {
+    recordToggleBtn.classList.toggle('recording', isRecording);
+    recordToggleLabel.textContent = isRecording ? '録音停止' : '録音開始';
+  }
+
+  async function startRecording() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
+      setStatus('このブラウザは録音に対応していません。', true);
+      return;
+    }
+    stopAll();
+    try {
+      recordingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+      console.error(err);
+      setStatus('マイクへのアクセスが許可されませんでした。', true);
+      return;
+    }
+
+    const mimeType = pickRecordingMimeType();
+    recordedChunks = [];
+    try {
+      mediaRecorder = mimeType
+        ? new MediaRecorder(recordingStream, { mimeType })
+        : new MediaRecorder(recordingStream);
+    } catch (err) {
+      console.error(err);
+      setStatus('録音を開始できませんでした。', true);
+      releaseRecordingStream();
+      return;
+    }
+
+    mediaRecorder.addEventListener('dataavailable', (e) => {
+      if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+    });
+
+    mediaRecorder.addEventListener('stop', () => {
+      stopRecordingTimer();
+      recordTimerEl.classList.add('hidden');
+      releaseRecordingStream();
+      setRecordingUI(false);
+
+      if (!recordedChunks.length) return;
+      const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+      const ext = (blob.type.split('/')[1] || 'webm').split(';')[0];
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const file = new File([blob], `recording-${stamp}.${ext}`, { type: blob.type });
+      handleFile(file);
+    });
+
+    mediaRecorder.start();
+    setRecordingUI(true);
+    startRecordingTimer();
+    setStatus('録音中…');
+  }
+
+  function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+    }
+  }
+
+  function releaseRecordingStream() {
+    if (recordingStream) {
+      recordingStream.getTracks().forEach((track) => track.stop());
+      recordingStream = null;
+    }
+  }
+
+  recordToggleBtn.addEventListener('click', () => {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      stopRecording();
+    } else {
+      startRecording();
+    }
   });
 
   // ---- Core processing ----
@@ -182,6 +306,9 @@
     if (reversedSource) {
       try { reversedSource.onended = null; reversedSource.stop(); } catch (e) {}
       reversedSource = null;
+    }
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.stop();
     }
     setButtonsPlaying(false, false);
   }

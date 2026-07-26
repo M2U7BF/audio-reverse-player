@@ -12,7 +12,7 @@
   <div class="app">
     <header class="hero">
       <h1><span class="emoji" aria-hidden="true">🔁</span> 逆再生メーカー</h1>
-      <p class="subtitle">音声ファイルをアップロードして、その場で逆再生に変換・再生・ダウンロード。すべてブラウザ内で処理され、サーバーには送信されません。</p>
+      <p class="subtitle">音声ファイルをアップロード、またはその場でマイク録音して、逆再生に変換・再生・ダウンロード。すべてブラウザ内で処理され、サーバーには送信されません。</p>
     </header>
 
     <main>
@@ -22,6 +22,22 @@
           <div class="dropzone-icon" aria-hidden="true">🎵</div>
           <p class="dropzone-text">ここに音声ファイルをドロップ<br class="mobile-hide">またはクリックして選択</p>
           <p class="dropzone-hint">MP3 / WAV / OGG / M4A など</p>
+        </div>
+      </section>
+
+      <div class="divider"><span>または</span></div>
+
+      <section class="record-card">
+        <div class="record-info">
+          <div class="record-title">🎙️ その場で録音</div>
+          <p class="record-hint">マイクで録音して、そのまま逆再生に変換します</p>
+        </div>
+        <div class="record-controls">
+          <button id="recordToggle" class="btn btn-record" type="button">
+            <span class="record-dot" aria-hidden="true"></span>
+            <span id="recordToggleLabel">録音開始</span>
+          </button>
+          <span id="recordTimer" class="record-timer hidden">00:00</span>
         </div>
       </section>
 
