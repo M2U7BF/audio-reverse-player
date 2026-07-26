@@ -4,7 +4,7 @@
 
 ## デモ
 
-GitHub Pages: `https://<your-username>.github.io/audio-reverse-player/`
+GitHub Pages: https://M2U7BF.github.io/audio-reverse-player/
 
 ## 使い方
 
