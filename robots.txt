@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://M2U7BF.github.io/audio-reverse-player/sitemap.xml
